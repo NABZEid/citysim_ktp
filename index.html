@@ -49,8 +49,8 @@ small{color:#5d7fb0}
  </div>
  <button class="btn" onclick="gen()">🎲 Buat KTP</button>
  <button class="btn alt" id="dl" style="display:none" onclick="dl()">⬇ Download PNG</button>
- <canvas id="card" width="1536" height="1024"></canvas>
- <small>Simpan PNG ini. Kartu ini adalah "kunci" untuk masuk game.</small>
+ <canvas id="card" width="1536" height="1404"></canvas>
+ <label>Kode KTP (cadangan, bisa ditempel di game)</label><input id="code" readonly><button class="btn alt" onclick="copyCode()">Salin kode</button><br><small>Simpan PNG ini. Kartu ini adalah "kunci" untuk masuk game.</small>
 </div>
 
 <div class="panel" id="p2">
@@ -58,6 +58,7 @@ small{color:#5d7fb0}
  <button class="btn" onclick="startCam()">📷 Scan dengan Kamera</button>
  <button class="btn alt" onclick="document.getElementById('file').click()">🖼️ Upload Gambar KTP</button>
  <input type="file" id="file" accept="image/*" style="display:none" onchange="fromFile(this)">
+ <label>Atau tempel kode KTP</label><input id="paste" placeholder="CS1|..."><button class="btn alt" onclick="validate(document.getElementById('paste').value.trim())">Masuk dengan kode</button>
  <video id="vid" playsinline muted></video>
  <div id="msg"></div>
 </div>
@@ -87,7 +88,7 @@ const tpl=new Image();tpl.src=TEMPLATE_SRC;
 const cv=document.getElementById('card'),ctx=cv.getContext('2d');
 let tplReady=new Promise(r=>tpl.onload=r);
 
-function fmt(d){return d.toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-')}
+function fmt(d){const z=n=>String(n).padStart(2,'0');return z(d.getDate())+'-'+z(d.getMonth()+1)+'-'+d.getFullYear()}
 
 async function gen(){
  await tplReady;
@@ -100,25 +101,31 @@ async function gen(){
  const body=[code(city),name,age,berlaku,status].join('|');
  const payload='CS1|'+body+'|'+hash(body+SECRET);
 
- ctx.clearRect(0,0,1536,1024);
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,1536,1404);
  ctx.drawImage(tpl,0,0,1536,1024);
  ctx.fillStyle='#1e4fa3';ctx.textBaseline='middle';
  const rows=[[324,city],[438,name],[550,age+' tahun'],[663,berlaku],[777,status]];
  rows.forEach(([y,t])=>{let s=46;ctx.font=`700 ${s}px system-ui,Arial`;
   while(ctx.measureText(t).width>480&&s>20){s--;ctx.font=`700 ${s}px system-ui,Arial`}
   ctx.fillText(t,972,y)});
-
- // QR
+ // panel QR besar
+ rr(20,1034,1496,360,30,'#dbeafe');
  const qr=qrcode(0,'L');qr.addData(payload);qr.make();
- const n=qr.getModuleCount(),cell=Math.floor(120/n)||3,size=cell*n,pad=10;
- const qx=600,qy=832;
- ctx.fillStyle='#fff';ctx.fillRect(qx-pad,qy-pad,size+pad*2,size+pad*2);
+ const n=qr.getModuleCount(),cell=Math.floor(300/n),size=cell*n,pad=20;
+ const qx=60+pad,qy=1044+(340-size)/2;
+ rr(60,1044,size+pad*2,340,16,'#fff');
  ctx.fillStyle='#000';
  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.isDark(r,c))ctx.fillRect(qx+c*cell,qy+r*cell,cell,cell);
- ctx.fillStyle='#1e4fa3';ctx.font='600 30px system-ui,Arial';ctx.textBaseline='alphabetic';
- ctx.fillText('ID: CS-'+code(city)+'-'+hash(body).slice(0,5).toUpperCase(),qx+size+pad+20,qy+size/2+10);
+ const tx=60+size+pad*2+50;
+ ctx.fillStyle='#1e4fa3';ctx.textBaseline='alphabetic';
+ ctx.font='700 52px system-ui,Arial';ctx.fillText('Scan QR ini',tx,1150);
+ ctx.font='600 40px system-ui,Arial';ctx.fillText('di gerbang CitySim',tx,1205);
+ ctx.font='600 32px system-ui,Arial';ctx.fillText('ID: CS-'+code(city)+'-'+hash(body).slice(0,5).toUpperCase(),tx,1275);
+ document.getElementById('code').value=payload;
  document.getElementById('dl').style.display='inline-block';
 }
+function rr(x,y,w,hh,r,col){ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+hh,r);ctx.arcTo(x+w,y+hh,x,y+hh,r);ctx.arcTo(x,y+hh,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();ctx.fill()}
+function copyCode(){const t=document.getElementById('code');t.select();try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')}alert('Kode KTP disalin')}
 function dl(){const a=document.createElement('a');a.download='KTP-CitySim.png';a.href=cv.toDataURL('image/png');a.click()}
 
 /* ---------- Gerbang masuk ---------- */
